@@ -1,11 +1,12 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.Events;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class NodeEditor : EditorWindow
 {
-
     Rect window1;
     Rect window2;    
 
@@ -24,10 +25,10 @@ public class NodeEditor : EditorWindow
 
     void OnGUI()
     {
-        if (GUILayout.Button("LoadAllObjectsInScene")) {
+        if (GUI.Button(new Rect(0,0,100,30), "Reload")) {
             LoadAllObjectsInScene();
         };
-        DrawNodeCurve(window1, window2); // Here the curve is drawn under the windows
+        //DrawNodeCurve(window1, window2); // Here the curve is drawn under the windows
 
         BeginWindows();
         window1 = GUI.Window(1, window1, DrawNodeWindow, "Window 1");   // Updates the Rect's when these are dragged
@@ -37,9 +38,11 @@ public class NodeEditor : EditorWindow
 
     void DrawNodeWindow(int id)
     {
-        
+        if (GUI.Button(new Rect(10, 20, 80, 20), "Hello World")) {
+            Debug.Log("Got a click in window " + id);
+        }
+
         GUI.DragWindow();
-        
     }
 
     void DrawNodeCurve(Rect start, Rect end)
@@ -48,40 +51,50 @@ public class NodeEditor : EditorWindow
         Vector3 endPos = new Vector3(end.x, end.y + end.height / 2, 0);
         Vector3 startTan = startPos + Vector3.right * 50;
         Vector3 endTan = endPos + Vector3.left * 50;
-        Color shadowCol = new Color(0, 0, 0, 0.06f);
-        for (int i = 0; i < 3; i++) // Draw a shadow
-            Handles.DrawBezier(startPos, endPos, startTan, endTan, shadowCol, null, (i + 1) * 5);
-        Handles.DrawBezier(startPos, endPos, startTan, endTan, Color.black, null, 1);
+        Handles.DrawBezier(startPos, endPos, startTan, endTan, Color.white, null, 1.5f);
     }
 
-    void LoadAllObjectsInScene()
-    {
+    void LoadAllObjectsInScene() {
         Transform[] objects = FindObjectsOfType<Transform>();
-        foreach (Transform transform in objects)
-        {
-            Debug.LogError(transform.name);
+        foreach (Transform transform in objects) {
             Component[] components = transform.GetComponentsInChildren<Component>();
-            foreach (Component component in components)
-            {
-                Debug.LogWarning(component.GetType());
-                System.Reflection.FieldInfo[] properties = component.GetType().GetFields();                
-                foreach (System.Reflection.FieldInfo property in properties)
-                {   
-                    if(property.FieldType.IsSubclassOf(typeof(UnityEventBase)))
-                    {
-                       Debug.Log(property.FieldType + " " + property.Name);
-                    }
+            foreach (Component component in components) {
+                List<System.Reflection.FieldInfo> fieldsWithEvents = GetFieldsWithUnityEvents(component);
+                foreach (System.Reflection.FieldInfo property in fieldsWithEvents) {
+                    Debug.Log(transform.name + " " + component.GetType() + " = " + property.FieldType + " " + property.Name);
                 }
-                System.Reflection.PropertyInfo[] properties2 = component.GetType().GetProperties();
 
-                foreach (System.Reflection.PropertyInfo property in properties2)
-                {
-                    if (property.PropertyType.IsSubclassOf(typeof(UnityEventBase)))
-                    {
-                        Debug.Log(property.PropertyType + " " + property.Name);
-                    }
+                List<System.Reflection.PropertyInfo> propsWithEvents = GetPropsWithUnityEvents(component);
+
+                foreach (System.Reflection.PropertyInfo property in propsWithEvents) {
+                    Debug.Log(transform.name + " " + component.GetType() + " = " + property.PropertyType + " " + property.Name);
                 }
             }
         }
     }
+
+    List<System.Reflection.FieldInfo> GetFieldsWithUnityEvents(Component component) {
+        List<System.Reflection.FieldInfo> fieldsWithEvents = new List<System.Reflection.FieldInfo>();
+
+        System.Reflection.FieldInfo[] fields = component.GetType().GetFields();
+        foreach (System.Reflection.FieldInfo field in fields) {
+            if (field.FieldType.IsSubclassOf(typeof(UnityEventBase))) {
+                fieldsWithEvents.Add(field);
+            }
+        }
+        return fieldsWithEvents;
+    }
+
+    List<System.Reflection.PropertyInfo> GetPropsWithUnityEvents(Component component) {
+        List<System.Reflection.PropertyInfo> propsWithEvents = new List<System.Reflection.PropertyInfo>();
+
+        System.Reflection.PropertyInfo[] props = component.GetType().GetProperties();
+        foreach (System.Reflection.PropertyInfo prop in props) {
+            if (prop.PropertyType.IsSubclassOf(typeof(UnityEventBase))) {
+                propsWithEvents.Add(prop);
+            }
+        }
+        return propsWithEvents;
+    }
 }
+#endif
